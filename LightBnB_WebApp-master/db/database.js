@@ -90,20 +90,88 @@ const addUser = function (user) {
 
 
 /* ******************************************************* */
-/// Reservations
 
-/**
- * Get all reservations for a single user.
- * @param {string} guest_id The id of the user.
- * @return {Promise<[{}]>} A promise to the reservations.
- */
 const getAllReservations = function (guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+  const queryString = `
+    SELECT reservations.*, properties.*, AVG(property_reviews.rating) AS average_rating
+    FROM reservations
+    JOIN properties ON reservations.property_id = properties.id
+    JOIN property_reviews ON properties.id = property_reviews.property_id
+    WHERE reservations.guest_id = $1 AND end_date < NOW()::date
+    GROUP BY reservations.id, properties.id
+    ORDER BY start_date
+    LIMIT $2;
+  `;
+  const values = [guest_id, limit];
+  return pool
+    .query(queryString, values)
+    .then((res) => res.rows)
+    .catch((err) => console.error(err.message));
 };
-
 /* ******************************************************* */
 
-// The function executes a SQL query that selects all columns from the properties table and limits the number of results to the value of the limit parameter. 
+const getAllProperties = function (options, limit = 10) {
+  const queryParams = [];
+  let queryString = `
+    SELECT properties.*, AVG(property_reviews.rating) AS average_rating
+    FROM properties
+    LEFT JOIN property_reviews ON properties.id = property_id
+  `;
+
+  // clauses that need to be added based on the options provided
+  const whereClauses = [];
+  // check if owner_id is provided and add it to the WHERE clause
+  if (options.owner_id) {
+    queryParams.push(options.owner_id);
+    whereClauses.push(`properties.owner_id = $${queryParams.length}`);
+  }
+
+  // check if minimum_price_per_night and maximum_price_per_night are provided and add them to the WHERE clause
+  if (options.minimum_price_per_night && options.maximum_price_per_night) {
+    queryParams.push(options.minimum_price_per_night);
+    queryParams.push(options.maximum_price_per_night);
+    whereClauses.push(`properties.cost_per_night >= $${queryParams.length - 1} AND properties.cost_per_night <= $${queryParams.length}`);
+  } else if (options.minimum_price_per_night) {
+    queryParams.push(options.minimum_price_per_night);
+    whereClauses.push(`properties.cost_per_night >= $${queryParams.length}`);
+  } else if (options.maximum_price_per_night) {
+    queryParams.push(options.maximum_price_per_night);
+    whereClauses.push(`properties.cost_per_night <= $${queryParams.length}`);
+  }
+
+  // check if minimum_rating is provided and add it to the WHERE clause
+  if (options.minimum_rating) {
+    queryParams.push(options.minimum_rating);
+    whereClauses.push(`property_reviews.rating >= $${queryParams.length}`);
+  }
+
+  // add the WHERE clause to the query if there are any filters
+  if (whereClauses.length > 0) {
+    queryString += `WHERE ${whereClauses.join(' AND ')} `;
+  }
+
+  queryParams.push(limit);
+  queryString += `
+    GROUP BY properties.id
+    ORDER BY cost_per_night
+    LIMIT $${queryParams.length};
+  `;
+
+  console.log(queryString, queryParams);
+
+  return pool.query(queryString, queryParams).then((res) => res.rows);
+};
+
+
+
+
+
+
+
+
+
+/*   --------------------------------------------------------------------------------------------------   
+
 
 const getAllProperties = (options, limit = 10) => {
   // 1 Setup an array to hold any parameters that may be available for the query
@@ -117,7 +185,7 @@ properties.id
 = property_id
 `;
 
-  // 3 Check if a city, owner_id or price_per_night has been passed in as an option. Add them to the params array and and appends the corresponding WHERE clause to the query string.
+  // 3 Check if a city, owner_id or price_per_night has been passed in as an option. Add them to the params array and and append the corresponding WHERE clause to the query string.
   if (
     options.city
   ) {
@@ -169,6 +237,9 @@ LIMIT $${queryParams.length};
   return db.query(queryString, queryParams)
     .then(res => res.rows);
 };
+
+
+   ----------------------------------------------------------------------------------------------------   */
 
 
 /* ******************************************************* */
