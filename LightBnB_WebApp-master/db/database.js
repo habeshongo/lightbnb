@@ -164,97 +164,61 @@ const getAllProperties = function (options, limit = 10) {
 
 
 
+/* ******************************************************* */
 
 
+const addProperty = function (property) {
+  console.log("property value is:", property);
+  const { owner_id,
+    title,
+    description,
+    thumbnail_photo_url,
+    cover_photo_url,
+    cost_per_night,
+    street,
+    city,
+    province,
+    post_code,
+    country,
+    parking_spaces,
+    number_of_bathrooms,
+    number_of_bedrooms
+  } = property;
+  //return;
 
+  const query = `
+    INSERT INTO properties (
+      owner_id,
+      title,
+      description,
+      thumbnail_photo_url,
+      cover_photo_url,
+      cost_per_night,
+      street,
+      city,
+      province,
+      post_code,
+      country,
+      parking_spaces,
+      number_of_bathrooms,
+      number_of_bedrooms
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+    RETURNING *;
+  `;
+  const values = [owner_id, title, description, thumbnail_photo_url, cover_photo_url, cost_per_night, street, city, province, post_code, country, parking_spaces, number_of_bathrooms, number_of_bedrooms
+  ];
 
-
-
-/*   --------------------------------------------------------------------------------------------------   
-
-
-const getAllProperties = (options, limit = 10) => {
-  // 1 Setup an array to hold any parameters that may be available for the query
-  const queryParams = [];
-  // 2 A new query string is initialized to start selecting all properties and their average rating from the "properties" table, joined with the "property_reviews" table.
-  let queryString = `
-SELECT properties.*, avg(property_reviews.rating) as average_rating
-FROM properties
-JOIN property_reviews ON 
-properties.id
-= property_id
-`;
-
-  // 3 Check if a city, owner_id or price_per_night has been passed in as an option. Add them to the params array and and append the corresponding WHERE clause to the query string.
-  if (
-    options.city
-  ) {
-    queryParams.push(`%${options.city
-      }%`);
-    queryString += `WHERE city LIKE $${queryParams.length} `;
-  }
-
-  if (options.owner_id) {
-    queryParams.push(options.owner_id);
-    if (queryParams.length === 1) {
-      queryString += `WHERE owner_id = $${queryParams.length} `;
-    } else {
-      queryString += `AND owner_id = $${queryParams.length} `;
-    }
-  }
-
-  if (options.minimum_price_per_night && options.maximum_price_per_night) {
-    queryParams.push(options.minimum_price_per_night * 100, options.maximum_price_per_night * 100);
-    if (queryParams.length === 2) {
-      queryString += `WHERE cost_per_night >= $${queryParams.length - 1} AND cost_per_night <= $${queryParams.length} `;
-    } else {
-      queryString += `AND cost_per_night >= $${queryParams.length - 1} AND cost_per_night <= $${queryParams.length} `;
-    }
-  }
-
-  // 4 Add any query that comes after the WHERE clause.
-  queryString += `
-GROUP BY 
-properties.id
-
-`;
-
-  if (options.minimum_rating) {
-    queryParams.push(options.minimum_rating);
-    queryString += `HAVING avg(property_reviews.rating) >= $${queryParams.length} `;
-  }
-
-  queryParams.push(limit);
-  queryString += `
-ORDER BY cost_per_night
-LIMIT $${queryParams.length};
-`;
-
-  // 5 Console log everything just to make sure we've done it right.
-  console.log(queryString, queryParams);
-
-  // 6 Run the query.
-  return db.query(queryString, queryParams)
-    .then(res => res.rows);
+  return pool
+    .query(query, values)
+    .then((res) => {
+      console.log("res value is:", res);
+      return res.rows[0];
+    })
+    .catch((err) => console.error(err));
 };
-
-
-   ----------------------------------------------------------------------------------------------------   */
 
 
 /* ******************************************************* */
-
-/**
- * Add a property to the database
- * @param {{}} property An object containing all of the property details.
- * @return {Promise<{}>} A promise to the property.
- */
-const addProperty = function (property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
-};
 
 module.exports = {
   db,
